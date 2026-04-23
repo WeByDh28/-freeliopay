@@ -1,149 +1,26 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FreelioPay</title>
-
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background:#f7f6f3;
-  margin:0;
-  text-align:center;
-  color:#1a1a18;
-}
-
-.container {
-  max-width:900px;
-  margin:auto;
-  padding:60px 20px;
-}
-
-h1 {
-  font-size:42px;
-  margin-bottom:10px;
-}
-
-p {
-  font-size:18px;
-  color:#5f5e5a;
-}
-
-.card {
-  background:white;
-  padding:20px;
-  margin-top:30px;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.05);
-}
-
-.features {
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:15px;
-  margin-top:30px;
-}
-
-.feature {
-  background:#fff;
-  padding:15px;
-  border-radius:10px;
-}
-
-button {
-  margin-top:30px;
-  padding:12px 20px;
-  border:none;
-  background:#1D9E75;
-  color:white;
-  font-size:16px;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-button:hover {
-  background:#085041;
-}
-
-.small {
-  font-size:12px;
-  color:#a09f9a;
-  margin-top:20px;
-}
-</style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-  <h1>FreelioPay</h1>
-  <p>Gère tes factures et relances automatiquement en tant que freelance.</p>
-
-  <div class="card">
-    <h2>🚀 Pourquoi FreelioPay ?</h2>
-
-    <div class="features">
-      <div class="feature">✔ Factures simples</div>
-      <div class="feature">✔ Relances automatiques</div>
-      <div class="feature">✔ Moins d’impayés</div>
-    </div>
-
-    <!-- 🔥 FORMULAIRE SUPABASE -->
-    <form id="signupForm">
-
-      <input 
-        type="email" 
-        id="email"
-        placeholder="Entre ton email"
-        required
-        style="padding:12px;width:260px;border-radius:8px;border:1px solid #ccc;margin-top:20px;"
-      >
-
-      <br><br>
-
-      <button type="submit">
-        Essayer gratuitement
-      </button>
-
-    </form>
-
-    <div class="small">
-      Version MVP — en test avec les premiers utilisateurs
-    </div>
-  </div>
-
-</div>
-
-<!-- 🔥 SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ⚠️ REMPLACE ICI
-  const supabaseUrl = "COLLE_ICI_PROJECT_URL";
-  const supabaseKey = "COLLE_ICI_ANON_KEY";
+  const supabaseUrl = "https://ricfpeuospmttgnnhclt.supabase.co";
+  const supabaseKey = "COLLE_TA_CLE_ANON_ICI";
 
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
   document.getElementById("signupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = document.getElementById("email").value;
 
-    const { error } = await supabaseClient
+    const { error } = await supabase
       .from("users")
       .insert([{ email }]);
 
     if (error) {
       alert("Erreur : " + error.message);
+      console.log(error);
     } else {
       alert("Inscription réussie 🚀");
       document.getElementById("signupForm").reset();
     }
   });
 </script>
-
-</body>
-</html>
