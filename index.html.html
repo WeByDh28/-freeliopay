@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freelio — Gestion de factures</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f6f3; --surface: #fff; --surface2: #f2f0eb;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18; --text2: #5f5e5a; --text3: #a09f9a;
+    --teal: #1D9E75; --teal-light: #E1F5EE; --teal-dark: #085041;
+    --amber: #EF9F27; --amber-light: #FAEEDA; --amber-dark: #633806;
+    --coral: #D85A30; --coral-light: #FAECE7; --coral-dark: #712B13;
+    --radius: 8px; --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; }
+  .logo { padding: 1.25rem; display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; letter-spacing: -0.3px; border-bottom: 0.5px solid var(--border); }
+  .logo-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal); }
+  nav { padding: 0.75rem 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 0.55rem 1.25rem; font-size: 13.5px; color: var(--text2); cursor: pointer; transition: all 0.12s; user-select: none; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--teal-light); color: var(--teal-dark); font-weight: 500; }
+  .nav-icon { width: 18px; font-size: 14px; text-align: center; flex-shrink: 0; }
+  .sidebar-footer { padding: 1rem 1.25rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #9FE1CB; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--teal-dark); flex-shrink: 0; }
+  .user-name { font-size: 13px; font-weight: 500; }
+  .user-role { font-size: 11px; color: var(--text3); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0.85rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .page-title { font-size: 15px; font-weight: 500; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+  /* BUTTONS */
+  .btn { padding: 7px 14px; border-radius: var(--radius); font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); transition: all 0.12s; font-family: inherit; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--teal); color: var(--teal-light); border-color: var(--teal); font-weight: 500; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .metric-card { background: var(--surface2); border-radius: var(--radius); padding: 1rem; }
+  .metric-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .metric-value { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+  .metric-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .up { color: var(--teal); } .down { color: var(--coral); }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .card-title { font-size: 13.5px; font-weight: 500; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+  .badge-paid { background: var(--teal-light); color: var(--teal-dark); }
+  .badge-pending { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-overdue { background: var(--coral-light); color: var(--coral-dark); }
+  .badge-draft { background: var(--surface2); color: var(--text2); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .td-muted { color: var(--text2); font-size: 12px; }
+  .td-bold { font-weight: 500; }
+
+  /* INVOICE ROWS */
+  .invoice-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.12s; margin-bottom: 6px; }
+  .invoice-row:hover { background: var(--surface2); }
+  .invoice-info { flex: 1; }
+  .invoice-client { font-size: 13px; font-weight: 500; }
+  .invoice-num { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .invoice-amt { text-align: right; font-weight: 500; font-size: 14px; }
+  .invoice-due { text-align: right; font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+  /* PROGRESS */
+  .progress-wrap { margin-bottom: 12px; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+  .progress-track { background: var(--surface2); border-radius: 99px; height: 6px; }
+  .progress-fill { height: 6px; border-radius: 99px; background: var(--teal); }
+
+  /* REMINDER ITEMS */
+  .reminder-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius); border: 0.5px solid var(--border); margin-bottom: 6px; }
+  .r-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+  /* PAYMENT CARDS */
+  .pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pay-card { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.12s; }
+  .pay-card:hover { background: var(--surface2); }
+  .pay-card.connected { border-color: #5DCAA5; }
+  .pay-icon { width: 34px; height: 34px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .pay-name { font-size: 13px; font-weight: 500; }
+  .pay-status { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .connected .pay-status { color: var(--teal); }
+
+  /* BAR CHART */
+  .bar-chart { display: flex; align-items: flex-end; gap: 5px; height: 110px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; border-radius: 3px 3px 0 0; background: #9FE1CB; }
+  .bar.active { background: var(--teal); }
+  .bar-lbl { font-size: 10px; color: var(--text3); }
+
+  /* SEQUENCE */
+  .seq-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface2); margin-bottom: 8px; }
+  .seq-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .seq-title { font-size: 13px; font-weight: 500; }
+  .seq-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* TABS */
+  .tab-bar { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: 1rem; }
+  .tab { padding: 8px 16px; font-size: 13px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: all 0.12s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--teal-dark); border-bottom-color: var(--teal); font-weight: 500; }
+
+  /* SELECT */
+  select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; }
+
+  /* MODAL */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 1.5rem; width: 480px; max-width: 92vw; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-close { cursor: pointer; font-size: 22px; line-height: 1; background: none; border: none; color: var(--text2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  label { font-size: 12px; color: var(--text2); font-weight: 500; }
+  input[type="text"], input[type="number"], input[type="date"], input[type="email"], select.form-select, textarea {
+    width: 100%; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius);
+    font-size: 13px; background: var(--surface); color: var(--text); font-family: inherit;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+
+  /* STAT CHIPS for reports */
+  .stat-chip { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--surface2); border-radius: var(--radius); margin-bottom: 8px; }
+  .chip-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-dot"></span>Freelio</div>
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">⬡</span> Tableau de bord
+      </div>
+      <div class="nav-item" onclick="showPage('invoices')">
+        <span class="nav-icon">▤</span> Factures
+      </div>
+      <div class="nav-item" onclick="showPage('clients')">
+        <span class="nav-icon">◉</span> Clients
+      </div>
+      <div class="nav-item" onclick="showPage('reminders')">
+        <span class="nav-icon">◷</span> Rappels
+      </div>
+      <div class="nav-item" onclick="showPage('reports')">
+        <span class="nav-icon">▥</span> Rapports
+      </div>
+      <div class="nav-item" onclick="showPage('payments')">
+        <span class="nav-icon">◈</span> Paiements
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="avatar">SF</div>
+      <div>
+        <div class="user-name">Sophie F.</div>
+        <div class="user-role">Freelance design</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <span class="page-title">Tableau de bord</span>
+        <div class="topbar-actions">
+          <button class="btn btn-primary" onclick="openModal()">+ Nouvelle facture</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">Chiffre d'affaires</div>
+            <div class="metric-value">18 450 €</div>
+            <div class="metric-sub up">↑ 12% ce mois</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">En attente</div>
+            <div class="metric-value">4 200 €</div>
+            <div class="metric-sub">3 factures</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">En retard</div>
+            <div class="metric-value">1 800 €</div>
+            <div class="metric-sub down">2 clients</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Taux de paiement</div>
+            <div class="metric-value">87%</div>
+            <div class="metric-sub up">↑ 4 pts</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Revenus mensuels 2025</span>
+            </div>
+            <div class="bar-chart" id="barChart"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Rappels urgents</span>
+              <span class="badge badge-overdue">2 urgents</span>
+            </div>
+            <div class="reminder-item">
+              <span class="r-dot" style="background: var(--coral);"></span>
+              <div>
+                <div style="font-size:13px;font-weight:500;">Atelier Créatif — FAC-042</div>
+                <div style="font-size:11px;color:var(--text3);">En retard de 15 jours · 1 200 €</div>
+              </div>
+            </div>
+            <div class="reminder-item">
+              <span class="r-dot" style="background: var(--coral);"></span>
+              <div>
+                <div style="font-size:13px;font-weight:500;">Studio Pixel — FAC-039</div>
+                <div style="font-size:11px;color:var(--text3);">En retard de 8 jours · 600 €</div>
+              </div>
+            </div>
+            <div class="reminder-item">
+              <span class="r-dot" style="background: var(--amber);"></span>
+              <div>
+                <div style="font-size:13px;font-weight:500;">MakerSpace — FAC-044</div>
+                <div style="font-size:11px;color:var(--text3);">Échéance dans 3 jours · 900 €</div>
+              </div>
+            </div>
+            <div class="reminder-item">
+              <span class="r-dot" style="background: var(--teal);"></span>
+              <div>
+                <div style="font-size:13px;font-weight:500;">Nova Agency — FAC-043</div>
+                <div style="font-size:11px;color:var(--text3);">Payé le 18 avr. · 2 400 €</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Factures récentes</span>
+            <button class="btn btn-sm" onclick="showPage('invoices')">Voir tout</button>
+          </div>
+          <div>
+            <div class="invoice-row">
+              <div class="invoice-info"><div class="invoice-client">Nova Agency</div><div class="invoice-num">FAC-043 · Design UI</div></div>
+              <span class="badge badge-paid">Payé</span>
+              <div><div class="invoice-amt">2 400 €</div><div class="invoice-due">18 avr.</div></div>
+            </div>
+            <div class="invoice-row">
+              <div class="invoice-info"><div class="invoice-client">MakerSpace</div><div class="invoice-num">FAC-044 · Dev web</div></div>
+              <span class="badge badge-pending">En attente</span>
+              <div><div class="invoice-amt">900 €</div><div class="invoice-due">Due 26 avr.</div></div>
+            </div>
+            <div class="invoice-row">
+              <div class="invoice-info"><div class="invoice-client">Atelier Créatif</div><div class="invoice-num">FAC-042 · Branding</div></div>
+              <span class="badge badge-overdue">En retard</span>
+              <div><div class="invoice-amt">1 200 €</div><div class="invoice-due">Due 8 avr.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== INVOICES ===== -->
+    <div id="page-invoices" class="page">
+      <div class="topbar">
+        <span class="page-title">Factures</span>
+        <div class="topbar-actions">
+          <select>
+            <option>Toutes les factures</option>
+            <option>Payées</option>
+            <option>En attente</option>
+            <option>En retard</option>
+          </select>
+          <button class="btn btn-primary" onclick="openModal()">+ Nouvelle facture</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="tab-bar">
+            <div class="tab active">Toutes (12)</div>
+            <div class="tab">Payées (7)</div>
+            <div class="tab">En attente (3)</div>
+            <div class="tab">En retard (2)</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>N° Facture</th><th>Client</th><th>Description</th>
+                  <th>Date</th><th>Échéance</th><th>Montant</th><th>Statut</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="td-muted">FAC-044</td><td class="td-bold">MakerSpace</td>
+                  <td class="td-muted">Développement web</td><td>12 avr.</td><td>26 avr.</td>
+                  <td class="td-bold">900 €</td><td><span class="badge badge-pending">En attente</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+                <tr>
+                  <td class="td-muted">FAC-043</td><td class="td-bold">Nova Agency</td>
+                  <td class="td-muted">Design UI/UX</td><td>4 avr.</td><td>18 avr.</td>
+                  <td class="td-bold">2 400 €</td><td><span class="badge badge-paid">Payé</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+                <tr>
+                  <td class="td-muted">FAC-042</td><td class="td-bold">Atelier Créatif</td>
+                  <td class="td-muted">Identité visuelle</td><td>25 mars</td><td>8 avr.</td>
+                  <td class="td-bold">1 200 €</td><td><span class="badge badge-overdue">En retard</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+                <tr>
+                  <td class="td-muted">FAC-041</td><td class="td-bold">Studio Pixel</td>
+                  <td class="td-muted">Motion design</td><td>20 mars</td><td>3 avr.</td>
+                  <td class="td-bold">600 €</td><td><span class="badge badge-overdue">En retard</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+                <tr>
+                  <td class="td-muted">FAC-040</td><td class="td-bold">BrandCraft</td>
+                  <td class="td-muted">Consultation</td><td>15 mars</td><td>29 mars</td>
+                  <td class="td-bold">480 €</td><td><span class="badge badge-paid">Payé</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+                <tr>
+                  <td class="td-muted">FAC-039</td><td class="td-bold">TechVision</td>
+                  <td class="td-muted">Design système</td><td>2 mars</td><td>16 mars</td>
+                  <td class="td-bold">3 200 €</td><td><span class="badge badge-paid">Payé</span></td>
+                  <td><button class="btn btn-sm">•••</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CLIENTS ===== -->
+    <div id="page-clients" class="page">
+      <div class="topbar">
+        <span class="page-title">Clients</span>
+        <button class="btn btn-primary">+ Nouveau client</button>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Client</th><th>Contact</th><th>Factures</th><th>Total encaissé</th><th>Délai moy.</th><th>Fiabilité</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="td-bold">Nova Agency</td><td class="td-muted">contact@nova.fr</td>
+                  <td>8</td><td class="td-bold">12 400 €</td><td>14 j</td><td><span class="badge badge-paid">Fiable</span></td>
+                </tr>
+                <tr>
+                  <td class="td-bold">MakerSpace</td><td class="td-muted">hello@makerspace.io</td>
+                  <td>6</td><td class="td-bold">8 200 €</td><td>22 j</td><td><span class="badge badge-pending">Moyen</span></td>
+                </tr>
+                <tr>
+                  <td class="td-bold">Atelier Créatif</td><td class="td-muted">atelier@crea.fr</td>
+                  <td>5</td><td class="td-bold">6 800 €</td><td>31 j</td><td><span class="badge badge-overdue">Retardataire</span></td>
+                </tr>
+                <tr>
+                  <td class="td-bold">BrandCraft</td><td class="td-muted">info@brandcraft.com</td>
+                  <td>4</td><td class="td-bold">4 200 €</td><td>10 j</td><td><span class="badge badge-paid">Fiable</span></td>
+                </tr>
+                <tr>
+                  <td class="td-bold">Studio Pixel</td><td class="td-muted">studio@pixel.fr</td>
+                  <td>3</td><td class="td-bold">2 400 €</td><td>28 j</td><td><span class="badge badge-overdue">Retardataire</span></td>
+                </tr>
+                <tr>
+                  <td class="td-bold">TechVision</td><td class="td-muted">contact@techvision.fr</td>
+                  <td>6</td><td class="td-bold">9 800 €</td><td>12 j</td><td><span class="badge badge-paid">Fiable</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REMINDERS ===== -->
+    <div id="page-reminders" class="page">
+      <div class="topbar">
+        <span class="page-title">Rappels automatiques</span>
+        <button class="btn">Paramètres</button>
+      </div>
+      <div class="content">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem;">Séquence de rappel</div>
+            <div class="seq-item">
+              <div class="seq-num" style="background:var(--teal-light);color:var(--teal-dark);">1</div>
+              <div>
+                <div class="seq-title">3 jours avant l'échéance</div>
+                <div class="seq-sub">Email de rappel amical</div>
+              </div>
+            </div>
+            <div class="seq-item">
+              <div class="seq-num" style="background:var(--amber-light);color:var(--amber-dark);">2</div>
+              <div>
+                <div class="seq-title">Jour de l'échéance</div>
+                <div class="seq-sub">Rappel final avec lien de paiement</div>
+              </div>
+            </div>
+            <div class="seq-item">
+              <div class="seq-num" style="background:var(--coral-light);color:var(--coral-dark);">3</div>
+              <div>
+                <div class="seq-title">7 jours après l'échéance</div>
+                <div class="seq-sub">Relance urgente</div>
+              </div>
+            </div>
+            <div class="seq-item">
+              <div class="seq-num" style="background:#FCEBEB;color:#501313;">4</div>
+              <div>
+                <div class="seq-title">30 jours après l'échéance</div>
+                <div class="seq-sub">Mise en demeure</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem;">Ce mois-ci</div>
+            <div style="font-size:36px;font-weight:600;letter-spacing:-1px;margin-bottom:4px;">14</div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:1.25rem;">emails envoyés automatiquement</div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span style="color:var(--text2);">Taux d'ouverture</span><span style="font-weight:500;">78%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:78%;"></div></div>
+            </div>
+            <div class="progress-wrap" style="margin-top:10px;">
+              <div class="progress-row"><span style="color:var(--text2);">Paiements déclenchés</span><span style="font-weight:500;">6 / 9</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:66%;background:#5DCAA5;"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Rappels à envoyer</span>
+            <span class="badge badge-overdue">2 urgents</span>
+          </div>
+          <div class="invoice-row">
+            <div class="invoice-info"><div class="invoice-client">Atelier Créatif</div><div class="invoice-num">FAC-042 · En retard 15 jours</div></div>
+            <span class="badge badge-overdue">Urgente</span>
+            <div class="invoice-amt">1 200 €</div>
+            <button class="btn btn-primary btn-sm">Envoyer</button>
+          </div>
+          <div class="invoice-row">
+            <div class="invoice-info"><div class="invoice-client">Studio Pixel</div><div class="invoice-num">FAC-039 · En retard 8 jours</div></div>
+            <span class="badge badge-overdue">Urgente</span>
+            <div class="invoice-amt">600 €</div>
+            <button class="btn btn-primary btn-sm">Envoyer</button>
+          </div>
+          <div class="invoice-row">
+            <div class="invoice-info"><div class="invoice-client">MakerSpace</div><div class="invoice-num">FAC-044 · Échéance dans 3 jours</div></div>
+            <span class="badge badge-pending">À venir</span>
+            <div class="invoice-amt">900 €</div>
+            <button class="btn btn-sm">Programmer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REPORTS ===== -->
+    <div id="page-reports" class="page">
+      <div class="topbar">
+        <span class="page-title">Rapports</span>
+        <div class="topbar-actions">
+          <select><option>2025</option><option>2024</option></select>
+          <button class="btn">Exporter PDF</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">Total facturé</div>
+            <div class="metric-value">42 800 €</div>
+            <div class="metric-sub up">↑ 18% vs 2024</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Encaissé</div>
+            <div class="metric-value">38 600 €</div>
+            <div class="metric-sub">90% du total</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Factures émises</div>
+            <div class="metric-value">44</div>
+            <div class="metric-sub">Moy. 970 € / fact.</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Délai moy. paiement</div>
+            <div class="metric-value">18 j</div>
+            <div class="metric-sub up">↓ 3 jours</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem;">Revenus par client</div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span class="td-bold">Nova Agency</span><span>12 400 €</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:82%;"></div></div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span class="td-bold">MakerSpace</span><span>8 200 €</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:54%;background:#5DCAA5;"></div></div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span class="td-bold">Atelier Créatif</span><span>6 800 €</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:45%;background:#9FE1CB;"></div></div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span class="td-bold">BrandCraft</span><span>4 200 €</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:28%;background:#C0DD97;"></div></div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-row"><span class="td-bold">Autres</span><span>9 200 €</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:61%;background:#D3D1C7;"></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:1rem;">Répartition par prestation</div>
+            <div class="stat-chip"><div class="chip-dot" style="background:var(--teal);"></div><span style="flex:1;font-size:13px;">Design UI/UX</span><span style="font-weight:500;">48%</span></div>
+            <div class="stat-chip"><div class="chip-dot" style="background:#5DCAA5;"></div><span style="flex:1;font-size:13px;">Développement web</span><span style="font-weight:500;">31%</span></div>
+            <div class="stat-chip"><div class="chip-dot" style="background:#97C459;"></div><span style="flex:1;font-size:13px;">Branding</span><span style="font-weight:500;">14%</span></div>
+            <div class="stat-chip"><div class="chip-dot" style="background:#D3D1C7;"></div><span style="flex:1;font-size:13px;">Consultation</span><span style="font-weight:500;">7%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAYMENTS ===== -->
+    <div id="page-payments" class="page">
+      <div class="topbar"><span class="page-title">Intégrations paiement</span></div>
+      <div class="content">
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="margin-bottom:.5rem;">Solutions connectées</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:1.25rem;">Connectez vos outils de paiement pour envoyer des liens directement depuis vos factures.</div>
+          <div class="pay-grid">
+            <div class="pay-card connected">
+              <div class="pay-icon" style="background:#635BFF;color:#fff;">S</div>
+              <div><div class="pay-name">Stripe</div><div class="pay-status">● Connecté</div></div>
+            </div>
+            <div class="pay-card connected">
+              <div class="pay-icon" style="background:#003087;color:#fff;">P</div>
+              <div><div class="pay-name">PayPal</div><div class="pay-status">● Connecté</div></div>
+            </div>
+            <div class="pay-card">
+              <div class="pay-icon" style="background:var(--surface2);color:var(--text2);">SU</div>
+              <div><div class="pay-name">SumUp</div><div class="pay-status">Non connecté</div></div>
+            </div>
+            <div class="pay-card">
+              <div class="pay-icon" style="background:var(--surface2);color:var(--text2);">LY</div>
+              <div><div class="pay-name">Lydia Pro</div><div class="pay-status">Non connecté</div></div>
+            </div>
+            <div class="pay-card">
+              <div class="pay-icon" style="background:var(--surface2);color:var(--text2);">W</div>
+              <div><div class="pay-name">Wise</div><div class="pay-status">Non connecté</div></div>
+            </div>
+            <div class="pay-card">
+              <div class="pay-icon" style="background:var(--surface2);color:var(--text2);">IB</div>
+              <div><div class="pay-name">Virement SEPA</div><div class="pay-status">Non connecté</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1rem;">Transactions récentes</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Client</th><th>Facture</th><th>Méthode</th><th>Montant</th><th>Statut</th></tr></thead>
+              <tbody>
+                <tr><td>18 avr.</td><td class="td-bold">Nova Agency</td><td class="td-muted">FAC-043</td><td>Stripe</td><td class="td-bold">2 400 €</td><td><span class="badge badge-paid">Reçu</span></td></tr>
+                <tr><td>12 avr.</td><td class="td-bold">BrandCraft</td><td class="td-muted">FAC-040</td><td>PayPal</td><td class="td-bold">480 €</td><td><span class="badge badge-paid">Reçu</span></td></tr>
+                <tr><td>5 avr.</td><td class="td-bold">TechVision</td><td class="td-muted">FAC-038</td><td>Virement</td><td class="td-bold">3 200 €</td><td><span class="badge badge-paid">Reçu</span></td></tr>
+                <tr><td>28 mars</td><td class="td-bold">MakerSpace</td><td class="td-muted">FAC-037</td><td>Stripe</td><td class="td-bold">1 100 €</td><td><span class="badge badge-paid">Reçu</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: Nouvelle facture -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nouvelle facture</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Client</label>
+        <select>
+          <option>Nova Agency</option><option>MakerSpace</option>
+          <option>Atelier Créatif</option><option>BrandCraft</option><option>+ Nouveau client</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>N° facture</label>
+        <input type="text" value="FAC-045">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description de la prestation</label>
+      <input type="text" placeholder="Ex : Design UI pour application mobile">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Montant HT (€)</label>
+        <input type="number" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>TVA (%)</label>
+        <select><option>20%</option><option>10%</option><option>0% (auto-entrepreneur)</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date d'émission</label>
+        <input type="date">
+      </div>
+      <div class="form-group">
+        <label>Échéance de paiement</label>
+        <input type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Méthode de paiement préférée</label>
+      <select><option>Stripe</option><option>PayPal</option><option>Virement SEPA</option></select>
+    </div>
+    <div style="padding:10px 12px;background:var(--teal-light);border-radius:var(--radius);font-size:13px;color:var(--teal-dark);margin-bottom:4px;">
+      Les rappels automatiques seront activés selon votre séquence configurée.
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Annuler</button>
+      <button class="btn">Enregistrer brouillon</button>
+      <button class="btn btn-primary" onclick="closeModal()">Envoyer la facture</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const pages = ['dashboard','invoices','clients','reminders','reports','payments'];
+
+  function showPage(id) {
+    pages.forEach(p => {
+      document.getElementById('page-' + p).classList.remove('active');
+    });
+    document.querySelectorAll('.nav-item').forEach((n, i) => {
+      n.classList.toggle('active', pages[i] === id);
+    });
+    document.getElementById('page-' + id).classList.add('active');
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Bar chart
+  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const values = [1200,2400,3100,2800,3900,4200,3500,2900,4100,3800,2400,1800];
+  const max = Math.max(...values);
+  const chart = document.getElementById('barChart');
+  months.forEach((m, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'bar-wrap';
+    const pct = Math.round((values[i] / max) * 100);
+    const bar = document.createElement('div');
+    bar.className = 'bar' + (i === 3 ? ' active' : '');
+    bar.style.height = pct + '%';
+    bar.title = values[i].toLocaleString('fr') + ' €';
+    const lbl = document.createElement('div');
+    lbl.className = 'bar-lbl';
+    lbl.textContent = m;
+    wrap.appendChild(bar);
+    wrap.appendChild(lbl);
+    chart.appendChild(wrap);
+  });
+
+  // Tab switching
+  document.querySelectorAll('.tab-bar').forEach(bar => {
+    bar.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        bar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+  });
+</script>
+</body>
+</html>
